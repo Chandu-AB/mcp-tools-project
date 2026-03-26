@@ -1,47 +1,52 @@
-// src/mcp/server.ts
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  ListToolsRequestSchema,
-  CallToolRequestSchema
-} from "@modelcontextprotocol/sdk/types.js";
-
+// @ts-ignore
 import { tools } from "./tools/index.js";
 
-// create server
-const server = new Server(
-  { name: "api-tools", version: "1.0.0" },
-  { capabilities: { tools: {} } }
-);
+// 1. Tool యొక్క ఆకృతిని (Type) నిర్వచించడం
+// దీనివల్ల tool.schema లేదా tool.execute దగ్గర TypeScript ఎర్రర్స్ రావు
+interface McpTool {
+  name: string;
+  description: string;
+  schema: any; 
+  execute: (args: any) => Promise<any>;
+}
 
-// list tools
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: tools.map(tool => ({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: tool.inputSchema
-  }))
-}));
-
-// call tools
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const tool = tools.find(t => t.name === request.params.name);
-
-  if (!tool) throw new Error("Tool not found");
-
-const args = request.params.arguments as { message: string };
-const result = await tool.execute(args);
-  return {
-    content: [
-      {
-        type: "text",
-        text: typeof result === "string" ? result : JSON.stringify(result)
-      }
-    ]
-  };
+const server = new McpServer({
+  name: "my-mcp-api-server",
+  version: "1.0.0",
 });
 
-// start server
-const transport = new StdioServerTransport();
-await server.connect(transport);
-process.stdin.resume();
+/**
+ * 2. టూల్స్ ని రిజిస్టర్ చేయడం
+ * 'tools as McpTool[]' అని చెప్పడం ద్వారా TypeScript కి 
+ * ఈ ఆబ్జెక్ట్‌లలో schema, execute ఉంటాయని అర్థమవుతుంది.
+ */
+try {
+  for (const tool of (tools as McpTool[])) {
+    server.tool(
+      tool.name,
+      tool.description,
+      tool.schema,
+      async (args: any) => {
+        // ఇక్కడ ప్రతి టూల్ లోని execute ఫంక్షన్ రన్ అవుతుంది
+        return await tool.execute(args);
+      }
+    );
+  }
+} catch (error) {
+  console.error("టూల్స్ రిజిస్ట్రేషన్ లో పొరపాటు జరిగింది:", error);
+}
+
+// 3. సర్వర్ ని స్టార్ట్ చేయడం
+async function startServer() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  // గమనిక: stdout ని వాడకూడదు, కేవలం stderr లోనే లాగ్స్ ఉండాలి
+  console.error("MCP Server (Stdio) విజయవంతంగా రన్ అవుతోంది...");
+}
+
+startServer().catch((error) => {
+  console.error("సర్వర్ స్టార్ట్ చేయడంలో క్రిటికల్ ఎర్రర్:", error);
+  process.exit(1);
+});
