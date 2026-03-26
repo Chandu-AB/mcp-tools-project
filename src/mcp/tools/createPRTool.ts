@@ -2,6 +2,7 @@ import axios from "axios";
 import simpleGitModule from "simple-git";
 import { z } from "zod";
 
+// Handle ESM/CommonJS compatibility for simple-git
 const simpleGit = (simpleGitModule as any).default || simpleGitModule;
 
 // Schema for AI to understand inputs
@@ -13,20 +14,20 @@ export const createPRSchema = {
 // Execution logic
 export const executeCreatePR = async (args: { message: string; baseBranch?: string }) => {
   
-  // ✅ ఇక్కడ మార్పు చేశాం: ప్రాజెక్ట్ పాత్ ని గుర్తించడం
+  // ✅ CHANGE MADE HERE: Identifying the project path
   const projectPath = process.env.PROJECT_PATH || process.cwd();
   
-  // ✅ ఇక్కడ మార్పు చేశాం: గిట్ ని ఆ నిర్దిష్ట ఫోల్డర్ లో రన్ చేయమని చెప్పడం
+  // ✅ CHANGE MADE HERE: Instructing Git to run in that specific folder
   const git = simpleGit(projectPath); 
 
   try {
-    // డీబగ్గింగ్ కోసం ఒక లాగ్ (AI కి ఎక్కడ పని చేస్తున్నామో తెలుస్తుంది)
+    // Log for debugging (helps the AI know where we are working)
     console.error(`Working in directory: ${projectPath}`);
 
     const branchInfo = await git.branch();
     const currentBranch = branchInfo.current;
 
-    if (!currentBranch) throw new Error("Current branch detect కాలేదు. గిట్ రిపోజిటరీ పాత్ సరిగ్గా ఉందో లేదో చూడండి.");
+    if (!currentBranch) throw new Error("Current branch not detected. Check if the Git repository path is correct.");
 
     // Git Operations
     await git.add(".");

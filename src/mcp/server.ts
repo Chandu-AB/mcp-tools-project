@@ -3,8 +3,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 // @ts-ignore
 import { tools } from "./tools/index.js";
 
-// 1. Tool యొక్క ఆకృతిని (Type) నిర్వచించడం
-// దీనివల్ల tool.schema లేదా tool.execute దగ్గర TypeScript ఎర్రర్స్ రావు
+// 1. Defining the Tool Structure (Type)
+// This prevents TypeScript errors on tool.schema or tool.execute
 interface McpTool {
   name: string;
   description: string;
@@ -18,9 +18,9 @@ const server = new McpServer({
 });
 
 /**
- * 2. టూల్స్ ని రిజిస్టర్ చేయడం
- * 'tools as McpTool[]' అని చెప్పడం ద్వారా TypeScript కి 
- * ఈ ఆబ్జెక్ట్‌లలో schema, execute ఉంటాయని అర్థమవుతుంది.
+ * 2. Registering the Tools
+ * Using 'tools as McpTool[]' tells TypeScript that 
+ * these objects will definitely have schema and execute properties.
  */
 try {
   for (const tool of (tools as McpTool[])) {
@@ -29,24 +29,25 @@ try {
       tool.description,
       tool.schema,
       async (args: any) => {
-        // ఇక్కడ ప్రతి టూల్ లోని execute ఫంక్షన్ రన్ అవుతుంది
+        // This triggers the execute function for each specific tool
         return await tool.execute(args);
       }
     );
   }
 } catch (error) {
-  console.error("టూల్స్ రిజిస్ట్రేషన్ లో పొరపాటు జరిగింది:", error);
+  console.error("An error occurred during tool registration:", error);
 }
 
-// 3. సర్వర్ ని స్టార్ట్ చేయడం
+// 3. Starting the Server
 async function startServer() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  // గమనిక: stdout ని వాడకూడదు, కేవలం stderr లోనే లాగ్స్ ఉండాలి
-  console.error("MCP Server (Stdio) విజయవంతంగా రన్ అవుతోంది...");
+  
+  // Note: Do not use stdout for logs; only use stderr for MCP stability.
+  console.error("MCP Server (Stdio) is running successfully...");
 }
 
 startServer().catch((error) => {
-  console.error("సర్వర్ స్టార్ట్ చేయడంలో క్రిటికల్ ఎర్రర్:", error);
+  console.error("Critical error while starting the server:", error);
   process.exit(1);
 });
