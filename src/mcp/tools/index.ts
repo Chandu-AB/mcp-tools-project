@@ -13,4 +13,5 @@ export const tools = [
   createPRTool,
   generateCommitTool
   //more tools can be added here in the future
+  // Example: anotherTool,
 ];
