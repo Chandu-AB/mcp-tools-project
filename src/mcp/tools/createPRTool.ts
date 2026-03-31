@@ -1,77 +1,93 @@
 import axios from "axios";
 import simpleGitModule from "simple-git";
 import { z } from "zod";
+import path from "path";
 
-// Handle ESM/CommonJS compatibility for simple-git
 const simpleGit = (simpleGitModule as any).default || simpleGitModule;
 
-// Schema for AI to understand inputs
 export const createPRSchema = {
-  message: z.string().describe("Commit message for the changes"),
-  baseBranch: z.string().optional().describe("The branch to merge into (default: dev/main)")
+  message: z.string().describe("Commit message"),
+  baseBranch: z.string().optional().describe("Base branch (defaults to 'dev' or 'main')")
 };
 
-// Execution logic
-export const executeCreatePR = async (args: { message: string; baseBranch?: string }) => {
-  
-  // ✅ CHANGE MADE HERE: Identifying the project path
-  const projectPath = process.env.PROJECT_PATH || process.cwd();
-  
-  // ✅ CHANGE MADE HERE: Instructing Git to run in that specific folder
-  const git = simpleGit(projectPath); 
-
+export const executeCreatePR = async (args: any) => {
   try {
-    // Log for debugging (helps the AI know where we are working)
-    console.error(`Working in directory: ${projectPath}`);
+    const { message, baseBranch } = args;
+    
+    // ✅ 1. Validate Project Path
+    const rawPath = process.env.PROJECT_PATH;
+    if (!rawPath) throw new Error("PROJECT_PATH is not defined in .env");
+    
+    // Normalize path to fix Windows/Unix slash issues
+    const projectPath = path.resolve(rawPath);
+    console.error("📂 Accessing Repository at:", projectPath);
 
+    const git = simpleGit(projectPath);
+
+    // ✅ 2. Verify it is a valid Git Repo
+    const isRepo = await git.checkIsRepo();
+    if (!isRepo) {
+      throw new Error(`The directory ${projectPath} is not a Git repository. Did you run 'git init'?`);
+    }
+
+    // ✅ 3. Git Operations
     const branchInfo = await git.branch();
     const currentBranch = branchInfo.current;
+    if (!currentBranch) throw new Error("Could not determine current branch.");
 
-    if (!currentBranch) throw new Error("Current branch not detected. Check if the Git repository path is correct.");
+    console.error("🌿 Current Branch:", currentBranch);
 
-    // Git Operations
+    const status = await git.status();
+    if (status.files.length === 0) {
+      throw new Error("No changes detected. Add files to the project before creating a PR.");
+    }
+
     await git.add(".");
-    await git.commit(args.message);
+    await git.commit(message);
     await git.push("origin", currentBranch);
-    console.error(`Pushed to ${currentBranch} successfully.`);
 
-    // GitHub API Call
+    // ✅ 4. GitHub API Logic
     const { GITHUB_OWNER, GITHUB_REPO, GITHUB_TOKEN, BASE_BRANCH } = process.env;
-    const targetBase = args.baseBranch || BASE_BRANCH || "main";
+
+    if (!GITHUB_OWNER || !GITHUB_REPO || !GITHUB_TOKEN) {
+      throw new Error("Missing GitHub Auth variables in .env");
+    }
+
+    const targetBase = baseBranch || BASE_BRANCH || "main";
 
     const response = await axios.post(
       `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls`,
       {
-        title: args.message,
+        title: message,
         head: currentBranch,
         base: targetBase,
-        body: "PR created via MCP Tool."
+        body: "Automated PR via MCP Tool 🚀"
       },
       {
         headers: {
-          Authorization: `Bearer ${GITHUB_TOKEN}`,
-          Accept: "application/vnd.github+json"
+          Authorization: `token ${GITHUB_TOKEN}`, // Use 'token' for PATs
+          Accept: "application/vnd.github.v3+json"
         }
       }
     );
 
     return {
-      content: [{ type: "text", text: `✅ PR Success: ${response.data.html_url}` }]
+      content: [{ type: "text", text: `✅ Success! PR created: ${response.data.html_url}` }]
     };
+
   } catch (error: any) {
-    const msg = error.response?.data?.message || error.message;
-    console.error("Git/PR Error Details:", error.response?.data || error.message);
+    const errorMessage = error?.response?.data?.message || error.message || "Unknown error";
+    console.error("❌ Git/GitHub Error:", errorMessage);
     return {
-      content: [{ type: "text", text: `❌ PR Error: ${msg}` }],
+      content: [{ type: "text", text: `❌ Failed: ${errorMessage}` }],
       isError: true
     };
   }
 };
 
-// Exporting as a single tool object for index.ts
 export const createPRTool = {
   name: "createPR",
-  description: "Commit code, push changes, and create a GitHub PR",
-  schema: createPRSchema,
+  description: "Commits changes, pushes to origin, and creates a GitHub Pull Request.",
+  inputSchema: createPRSchema,
   execute: executeCreatePR
 };
