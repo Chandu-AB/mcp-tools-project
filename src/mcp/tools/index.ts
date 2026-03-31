@@ -1,17 +1,13 @@
-// No more @ts-ignore! Just use the .js extension in your imports.
-// TypeScript (NodeNext) understands that this refers to your .ts files.
-
-import { getUsersTool } from "./getUsers.js";
-import { getStudentsTool } from "./getStudents.js";
+// Importing each tool with .js extension for ESM compatibility
 import { createPRTool } from "./createPRTool.js";
-import { generateCommitTool } from "./generateCommitMessage.js";
+import { generateCommitMessageTool } from "./generateCommitMessage.js";
+import { getStudentsTool } from "./getStudents.js";
+import { getUsersTool } from "./getUsers.js";
 
-// Export as a named constant so server.ts can loop through them
+// Exporting a central tools array
 export const tools = [
-  getUsersTool,
-  getStudentsTool,
   createPRTool,
-  generateCommitTool
-  //more tools can be added here in the future
-  // Example: anotherTool,
+  generateCommitMessageTool,
+  getStudentsTool,
+  getUsersTool
 ];
