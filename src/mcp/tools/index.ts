@@ -1,12 +1,12 @@
-// @ts-ignore (NodeNext compatibility)
+// No more @ts-ignore! Just use the .js extension in your imports.
+// TypeScript (NodeNext) understands that this refers to your .ts files.
+
 import { getUsersTool } from "./getUsers.js";
-// @ts-ignore
 import { getStudentsTool } from "./getStudents.js";
-// @ts-ignore
 import { createPRTool } from "./createPRTool.js";
-// @ts-ignore
 import { generateCommitTool } from "./generateCommitMessage.js";
 
+// Export as a named constant so server.ts can loop through them
 export const tools = [
   getUsersTool,
   getStudentsTool,
