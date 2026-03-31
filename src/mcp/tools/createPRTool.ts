@@ -2,6 +2,7 @@ import { z } from "zod";
 import simpleGitModule from "simple-git";
 import path from "path";
 import axios from "axios";
+import "dotenv/config"; // ✅ Add dotenv import to tools
 
 const simpleGit = (simpleGitModule as any).default || simpleGitModule;
 
