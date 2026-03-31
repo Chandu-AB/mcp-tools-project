@@ -12,4 +12,5 @@ export const tools = [
   getStudentsTool,
   createPRTool,
   generateCommitTool
+  //more tools can be added here in the future
 ];
